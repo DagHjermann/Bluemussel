@@ -17,11 +17,66 @@ fn<-fn[!grepl("~",fn)]
 
 
 ```{r}
-dat<-read_excel(paste0("../2018/",fn[1])) %>% as.data.frame()
+dat <- read_excel(paste0("../2018/",fn[1])) %>% as.data.frame()
 dat[18:27,1:4]
-lengder<-bind_rows(data.frame (mm=20:29, antall=as.numeric(dat[18:27,2])),
+lengder <- bind_rows(data.frame (mm=20:29, antall=as.numeric(dat[18:27,2])),
                    data.frame (mm=30:39, antall=as.numeric(dat[18:27,3])),
                    data.frame (mm=40:49, antall=as.numeric(dat[18:27,4])))
+lengder <- lengder %>%
+  mutate(antall = case_when(
+    is.na(antall) ~ 0,
+    !is.na(antall) ~ antall
+  ))
 ```
+```{r}
+
+get_lengde <- function(filnummer, year = 2018){
+  
+  dat <- read_excel(paste0("../", year, "/", fn[filnummer])) %>% as.data.frame()
+  
+  lengder <- bind_rows(data.frame (prove=1, mm=20:29, antall=as.numeric(dat[18:27,2])),
+                       data.frame (prove=1, mm=30:39, antall=as.numeric(dat[18:27,3])),
+                       data.frame (prove=1, mm=40:49, antall=as.numeric(dat[18:27,4])),
+                       data.frame (prove=2, mm=20:29, antall=as.numeric(dat[18:27,6])),
+                       data.frame (prove=2, mm=30:39, antall=as.numeric(dat[18:27,7])),
+                       data.frame (prove=2, mm=40:49, antall=as.numeric(dat[18:27,8])),
+                       data.frame (prove=3, mm=20:29, antall=as.numeric(dat[18:27,10])),
+                       data.frame (prove=3, mm=30:39, antall=as.numeric(dat[18:27,11])),
+                       data.frame (prove=3, mm=40:49, antall=as.numeric(dat[18:27,12])),
+                       )
+  lengder <- lengder %>%
+    mutate(antall = case_when(
+      is.na(antall) ~ 0,
+      !is.na(antall) ~ antall
+    ),
+    fil = fn[filnummer]
+    )
+  
+  lengder
+  
+  
+}
+
+get_lengde(2)
+
+
+```
+
+
+```{r}
+
+lengde_alle <- seq_along(fn) %>% map(~try(get_lengde(.)))
+
+
+```
+
+
+```{r}
+
+ggplot(get_lengde(1) , aes(x = mm, y = antall, fill = prove)) +
+  geom_col()
+
+```
+
 
 
