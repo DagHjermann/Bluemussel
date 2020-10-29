@@ -1,0 +1,27 @@
+---
+title: "Bluemussel"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+fn<-dir("../2018/")
+fn[1]
+fn<-fn[!grepl("~",fn)]
+
+```
+
+
+```{r}
+dat<-read_excel(paste0("../2018/",fn[1])) %>% as.data.frame()
+dat[18:27,1:4]
+lengder<-bind_rows(data.frame (mm=20:29, antall=as.numeric(dat[18:27,2])),
+                   data.frame (mm=30:39, antall=as.numeric(dat[18:27,3])),
+                   data.frame (mm=40:49, antall=as.numeric(dat[18:27,4])))
+```
+
+
