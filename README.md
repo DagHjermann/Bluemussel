@@ -60,18 +60,24 @@ Note: by 'nominal' position, we mean a position that is not changing from year t
 #### File 1, period 1981-2013     
 
 ```
-"jmpst", "Station_name", "Lat_fixed", "Long_fixed",   # station codes (jmpst) and positions as 'defined' in 2019
+"jmpst", "Station_name", "Lat_fixed", "Long_fixed",   # station codes (jmpst) and positions as 'defined' in 2019 (1)
 "myear", "sdate", "stime",                            # year and date
 "rlabo", "seqno",                                     # key columns in the original data
 "subno",                                              # Sample number (usually 1-3) - corresponds to 'Sampleno' 2014-2019
 "speci",                                              # species code (Mytilus edulis)
-"latitude", "longitude", "latdg", "latmi", "latmf", "londg", "lonmi", "lonmf",  # position as recorded in the data *)
+"latitude", "longitude", "latdg", "latmi", "latmf", "londg", "lonmi", "lonmf",  # position as recorded in the data (2) 
 "inorb", "noinp",                                     # noimp = sample size (number of mussels in the sample)
 "lnmin", "lnmax", "lnmea", "lnstd",                   # Length per mussel (min, max, mean and SD)
 "wtmin", "wtmax", "wtmea", "wtstd",                   # Weight per mussel (lacking in most cases)
 "shlwtx", "tiswtx", "qeorw",                          # Total weight of shell and tissue (usually lacking)
 "cmnt1.x", "cmnt2.x", "cmnt3.x", "cmnt4.x", "cmnt5.x",   # Comments for sampling that year
 "cmnt1.y", "cmnt2.y", "cmnt3.y", "cmnt4.y", "cmnt5.y")   # Sample-specific comments
+
+(1) Lat_fixed and Long_fixed are fix from year to year, the 
+(2) position variables: 
+      latitude = latitude with decimals
+      latdg, latmi, latmf = latitude given as whole degrees, minutes (1/60 degree) and the two first decimals of minutes (1/100 minute)
+    Note: these positions may differ from one year to another (at least in principle)
 ```
 
 #### Files 2a, 2b, 2c, period 2014-2019   
