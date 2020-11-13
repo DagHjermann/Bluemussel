@@ -5,6 +5,8 @@ date: "10 11 2020"
 output: html_document
 ---
 
+Reading data stored in Access. For details, see README.   
+Saved data are copied to `K:/Avdeling/214-Oseanografi/DHJ/Data/Contaminants/Marine/Milkys`  
 
 ## 1. Packages  
 ```{r}
@@ -18,10 +20,17 @@ library(glue)
 
 ## 2. Data   
 
+### Data folder
+```{r}
+
+datafolder <- "K:/Avdeling/214-Oseanografi/DHJ/Data/Contaminants/Marine/Milkys"
+
+```
+
 ### Station names and coordinates  
 ```{r}
 
-data_stations <- readxl::read_excel("../Milkys2_pc/Files_to_Jupyterhub_2019/Kartbase_edit.xlsx")
+data_stations <- readxl::read_excel(glue("{datafolder}/Kartbase_edit.xlsx")
 
 ```
 
@@ -30,13 +39,48 @@ JAMP_Rapportering.mdb downloaded from `K:/Avdeling/Mar/NOG/JMGdata/Databaser` 27
 ### Read files  
 ```{r}
 
-datafolder <- "C:/Data/CEMP/2015_Milkys"
-
 # Station/year level data (one line per year * station * species)
-df_station <- read_csv2(glue("{datafolder}/dbo_fish_mas.txt"), guess_max = 2000)
+df_station <- read_csv2(
+  glue("{datafolder}/Access/dbo_fish_mas.txt"), 
+  col_types = cols(
+  .default = col_character(),
+  myear = col_double(),
+  seqno = col_double(),
+  cntry = col_double(),
+  cruis = col_double(),
+  sdate = col_double(),
+  latitude = col_double(),
+  longitude = col_double(),
+  latdg = col_double(),
+  latmi = col_double(),
+  latmf = col_double(),
+  londg = col_double(),
+  lonmi = col_double(),
+  lonmf = col_double(),
+  noins = col_double(),
+  wadep = col_double(),
+  astsa = col_double(),
+  ptsrc = col_double(),
+  BEM = col_double()
+))
 
 # Sample level data  
-df_sample <- read_csv2(glue("{datafolder}/dbo_fish_spe.txt"), guess_max = 6000)
+df_sample <- read_csv2(
+  glue("{datafolder}/Access/dbo_fish_spe.txt"), 
+  col_types = cols(
+  .default = col_double(),
+  rlabo = col_character(),
+  inorb = col_character(),
+  sexco = col_character(),
+  cones = col_character(),
+  agdet = col_character(),
+  seorb = col_character(),
+  cmnt1 = col_character(),
+  cmnt2 = col_character(),
+  cmnt3 = col_character(),
+  cmnt4 = col_character(),
+  cmnt5 = col_character())
+)
 
 ```
 ### Check duplicates  
