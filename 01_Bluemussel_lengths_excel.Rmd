@@ -3,6 +3,9 @@ title: "Bluemussel"
 output: html_document
 ---
 
+Reading data stored in Excel (2014-) For details, see README.   
+Saved data are copied to `K:/Avdeling/214-Oseanografi/DHJ/Data/Contaminants/Marine/Milkys`  
+
 ## 1. Packages  
 ```{r}
 
