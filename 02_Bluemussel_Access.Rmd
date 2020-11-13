@@ -1,0 +1,214 @@
+---
+title: "02_Bluemussel_Access"
+author: "DHJ"
+date: "10 11 2020"
+output: html_document
+---
+
+
+## 1. Packages  
+```{r}
+
+library(tidyverse)
+library(readxl)
+library(glue)
+
+```
+
+
+## 2. Data   
+
+### Station names and coordinates  
+```{r}
+
+data_stations <- readxl::read_excel("../Milkys2_pc/Files_to_Jupyterhub_2019/Kartbase_edit.xlsx")
+
+```
+
+JAMP_Rapportering.mdb downloaded from `K:/Avdeling/Mar/NOG/JMGdata/Databaser` 27.08.2015   
+
+### Read files  
+```{r}
+
+datafolder <- "C:/Data/CEMP/2015_Milkys"
+
+# Station/year level data (one line per year * station * species)
+df_station <- read_csv2(glue("{datafolder}/dbo_fish_mas.txt"), guess_max = 2000)
+
+# Sample level data  
+df_sample <- read_csv2(glue("{datafolder}/dbo_fish_spe.txt"), guess_max = 6000)
+
+```
+### Check duplicates  
+```{r}
+
+dupl <- df_station %>%
+  group_by(rlabo, myear, seqno) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
+  arrange(myear, seqno)
+
+# View(dupl)
+
+
+```
+
+### Check data sets 2010 and 2014     
+```{r}
+
+df_station %>%
+  filter(rlabo == "NIVA" & myear == 2010) %>%
+  xtabs(~dataset_id, .)
+
+df_station %>%
+  filter(rlabo == "NIVA" & myear == 2014 & jmpst == "35A") %>%
+  xtabs(~dataset_id + cmnt1, .)
+
+```
+
+### Filter df_station   
+To avoid duplication  
+```{r}
+
+sel <- with(df_station, rlabo == "NIVA" & myear == 2010 & dataset_id %in% c("O 10267","O 10269","O 10271"))
+sum(sel)
+df_station <- df_station[!sel,]
+
+sel <- with(df_station, rlabo == "NIVA" & myear == 2014 & jmpst == "35A" & dataset_id == "LO 27487-2")
+sum(sel)
+df_station <- df_station[!sel,]
+
+```
+
+### Check duplicates again 
+```{r}
+
+dupl <- df_station %>%
+  group_by(rlabo, myear, seqno) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
+  arrange(myear, seqno)
+
+nrow(dupl)
+
+```
+
+## 3. Make 'df_bluemussel'  
+
+### Join data
+```{r}
+
+n1 <- nrow(df_sample)
+df_sample2 <- df_sample %>%
+  left_join(df_station, by = c("rlabo", "myear", "seqno"))
+
+n2 <- nrow(df_sample2) 
+if (n2 != n1){
+  stop("Number of rows changed - key columns in 'df_station' are not unique?")
+}  
+
+# Filter data 
+df_bluemussel <- df_sample2 %>%
+  filter(speci == "MYTI EDU" & myear > 1949) # 1949 is just mock data anyway
+
+```
+
+
+### Add station coordinates (fixed) and names  
+```{r}
+
+n1 <- nrow(df_bluemussel)
+df_bluemussel <- df_bluemussel %>%
+  left_join(data_stations, by = c("jmpst" = "STATION_CODE")) %>%
+  rename(Lat_fixed = Lat,
+         Long_fixed = Long)
+
+n2 <- nrow(df_bluemussel)
+if (n2 != n1){
+  stop("Number of rows changed - stations in 'data_stations' are not unique?")
+}  
+
+
+```
+
+## 4. Some statistics   
+
+* Number (noinp) is lacking for ca 12%  
+* Length is lacking for ca 15%, weight (wtmea) is lacking for 86% 
+* Shell weight (shlwt and shlwtx) is lacking for 24-28%, tissue weight (tiswtx) for 81%    
+* latitude, longitude lacking for 81%, but latdg, londg lacking for 34%  
+* both latitude, longitude and latdg, londg lacking for 17%  
+
+```{r}
+
+# xtabs(~is.na(jmpst), df_bluemussel)
+# apply(is.na(df_bluemussel), 2, mean)  
+
+vars <- c("noinp", "lnmin", "lnmax", "lnmea", "lnstd", "wtmin", "wtmax", "wtmea", "wtstd", 
+          "shlwt", "shlwtx", "tiswtx")
+apply(is.na(df_bluemussel[vars]), 2, mean)  
+
+xtabs(~myear, df_bluemussel %>% filter(!is.na(lnmea)))
+
+vars <- c("latitude", "longitude", "latdg", "latmi", "latmf", "londg", "lonmi", "lonmf")
+apply(is.na(df_bluemussel[vars]), 2, mean)  
+
+sel <- with(df_bluemussel, is.na(latitude) & is.na(latdg))
+mean(sel)
+
+```
+`
+## Save + export  
+```{r}
+
+# names(df_bluemussel) %>% dput()
+vars <- c("jmpst", "Station_name", "Lat_fixed", "Long_fixed",   # station codes (jmpst) and positions as 'defined' in 2019
+          "myear", "sdate", "stime",                            # year and date
+          "rlabo", "seqno",                                     # key columns in the original data
+          "subno",                                              # Sample number (usually 1-3) - corresponds to 'Sampleno' 2014-2019
+          "speci",                                              # species code (Mytilus edulis)
+          "latitude", "longitude", "latdg", "latmi", "latmf", "londg", "lonmi", "lonmf",  # position as recorded in the data *)
+          "inorb", "noinp",                                     # noimp = sample size (number of mussels in the sample)
+          "lnmin", "lnmax", "lnmea", "lnstd",                   # Length per mussel (min, max, mean and SD)
+          "wtmin", "wtmax", "wtmea", "wtstd",                   # Weight per mussel (lacking in most cases)
+          "shlwtx", "tiswtx", "qeorw",                          # Total weight of shell and tissue (usually lacking)
+          "cmnt1.x", "cmnt2.x", "cmnt3.x", "cmnt4.x", "cmnt5.x",   # Comments for sampling that year
+          "cmnt1.y", "cmnt2.y", "cmnt3.y", "cmnt4.y", "cmnt5.y")   # Saample-specific comments
+
+# *) position variables: 
+#   latitude = latitude with decimals
+#   latdg, latmi, latmf = latitude given as whole degrees, minutes (1/60 degree) and the two first decimals of minutes (1/100 minute)
+#   Note: these positions may differ from one year to another (at least in principle)
+
+# Selected  columns for excel file
+writexl::write_xlsx(df_bluemussel[vars], "Data/Bluemussel lengths 1981-2013 summarised.xlsx")  
+
+# All columns for rds file
+saveRDS(df_bluemussel, "Data/02_df_bluemussel.rds")
+
+```
+
+## 6. Test plots  
+```{r}
+
+df_bluemussel %>%
+  filter(jmpst == "30A") %>%
+  ggplot(aes(myear, lnmea, color = noinp)) +
+  geom_point() +
+  facet_wrap(vars(jmpst))
+
+```
+
+```{r}
+
+df_bluemussel %>%
+  filter(!is.na(lnmea)) %>%
+  group_by(jmpst) %>%
+  mutate(n_years = length(unique(myear))) %>%
+  filter(n_years >= 5) %>%
+  geom_point() +
+  facet_wrap(vars(jmpst))
+
+```
+
+

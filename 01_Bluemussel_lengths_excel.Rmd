@@ -1,0 +1,390 @@
+---
+title: "Bluemussel"
+output: html_document
+---
+
+## 1. Packages  
+```{r}
+
+library(tidyverse)
+library(readxl)
+library(glue)
+
+# Load function `get_lengde_from_file`
+source("01_Bluemussel_lengths_excel_functions.R") 
+
+```
+
+## 2. Data   
+
+
+### Data folders  
+```{r}
+
+folders_2014_2019 <- c(
+  "K:/Prosjekter/Sjøvann/JAMP/2014/opparbeiding/blaaskjell",
+  "K:/Prosjekter/Sjøvann/JAMP/2015/Opparbeiding_biota/Blaaskjell",
+  "K:/Prosjekter/Sjøvann/JAMP/2016/opparbeiding biota/blåskjell",
+  "K:/Prosjekter/Sjøvann/JAMP/2017/opparbeiding biota/blaaskjell",
+  "K:/Prosjekter/Sjøvann/JAMP/2018/opparbeiding biota/Blåskjell" ,
+  "K:/Prosjekter/Sjøvann/JAMP/2019/opparbeiding biota/Blåskjell"
+)
+
+```
+
+### Station names and coordinates  
+```{r}
+
+data_stations <- readxl::read_excel("../Milkys2_pc/Files_to_Jupyterhub_2019/Kartbase_edit.xlsx")
+
+```
+
+
+## 3. Test read one file  
+
+### a. Files
+```{r}
+
+year <- 2018
+datafolder <- folders_2014_2019[year - 2013]
+fn <- dir(datafolder)
+fn[1]
+fn <- fn[!grepl("~",fn)]  
+
+
+```
+### b. Read sample no 1
+```{r}
+
+fn_full <- glue("{datafolder}/{fn[1]}")
+# fn_full
+dat <- read_excel(fn_full) %>% as.data.frame()
+dat[18:27,1:4]
+lengder <- bind_rows(data.frame (mm=20:29, antall=as.numeric(dat[18:27,2])),
+                   data.frame (mm=30:39, antall=as.numeric(dat[18:27,3])),
+                   data.frame (mm=40:49, antall=as.numeric(dat[18:27,4])))
+lengder <- lengder %>%
+  mutate(antall = case_when(
+    is.na(antall) ~ 0,
+    !is.na(antall) ~ antall
+  ))
+
+```
+
+
+## 4. Test function `get_lengde_from_file`   
+
+### a. 10A2_skallneset.xlsx in 2014 - a file with pretty unusual structure  
+```{r}
+
+# 10A2_skallneset.xlsx in 2014 - a file with pretty unusual structure 
+#  (headings for each sample)
+year <- 2014
+datafolder <- folders_2014_2019[year - 2013]
+fn <- dir(datafolder)
+# fn[1]
+fn <- fn[!grepl("~",fn)]  
+fn[1]
+
+# debugonce(get_lengde_from_file)
+
+# Test  
+df <- get_lengde_from_file(
+  folder = datafolder,
+  filename = fn[1],
+  stationcode = "10A2",
+  year = year
+  )
+
+ggplot(df , aes(x = Length, y = Number, fill = as.factor(Sampleno))) +
+  geom_col()
+
+
+```
+
+
+### b. I714_Brevik in 2018 - 4 length groups per sample   
+```{r}
+
+# I714_Brevik in 2018 - 4 length groups per sample
+year <- 2018
+datafolder <- folders_2014_2019[year - 2013]
+fn <- dir(datafolder)
+
+# debugonce(get_lengde_from_file)
+
+# Test  
+df <- get_lengde_from_file(
+  folder = datafolder,
+  filename = "I714_Brevik kirke_2018.xlsx" ,
+  stationcode = "10A2",
+  year = year
+  )
+
+ggplot(df , aes(x = Length, y = Number, fill = as.factor(Sampleno))) +
+  geom_col() +
+  facet_wrap(vars(Sampleno))
+
+
+```
+
+
+
+## 5. Make file for file names and station names  
+
+### Make file to be edited by hand   
+Forgot year so that was also added manually
+```{r}
+
+make_filename_data <- function(year, folders, firstyear = 2014){
+  datafolder <- folders_2014_2019[year - firstyear + 1]
+  fn <- dir(datafolder)
+  fn <- fn[!grepl("~",fn)]    # opened files
+  tibble(
+    Folder = datafolder,
+    Filename = fn,
+    Station_code = stringr::str_extract(fn, "[^_]+")
+  )
+}
+
+df_files <- 2014:2019 %>% 
+  purrr::map_dfr(
+    make_filename_data, folders = folders_2014_2019, firstyear = 2014
+  )
+
+writexl::write_xlsx(df_files, "Data/01_df_files_to_be_edited.xlsx")
+
+```
+
+### Read edited file  
+```{r}
+
+df_files_all <- readxl::read_excel("Data/01_df_files_edited.xlsx")
+
+df_files <- df_files_all %>%
+  filter(is.na(Not_excel))
+
+```
+
+
+## 6. Get all data   
+
+### Test with 2 files  
+```{r}
+
+test <- 1:2 %>%
+  map_dfr(
+    ~ suppressWarnings(
+      get_lengde_from_file(
+        folder = df_files$Folder[.],
+        filename = df_files$Filename[.],
+        stationcode = df_files$Station_code[.],
+        year = df_files$Year[.],
+        trace = TRUE
+      )
+    )
+  )
+
+ggplot(test , aes(x = Length, y = Number, fill = as.factor(Sampleno))) +
+  geom_col() +
+  facet_wrap(vars(Station))
+
+```
+
+### Get all data as list  
+```{r}
+
+# Make 'safe' version
+# The safe version will always return a list of two elements,
+#   'result' = the data frame from one file, if everything worked
+#   'error' = NULL if everything worked
+get_lengde_from_file_safe <- safely(get_lengde_from_file)
+
+dat_list <- 1:nrow(df_files) %>%
+  map(
+    ~ suppressWarnings(
+      get_lengde_from_file_safe(
+        folder = df_files$Folder[.],
+        filename = df_files$Filename[.],
+        stationcode = df_files$Station_code[.],
+        year = df_files$Year[.],
+        trace = FALSE
+      )
+    )
+  )
+
+
+# Transpose the list, so we get a list of two elements:
+#   'result' = a list of data frames (for those files that worked)
+#   'error' = a list of error messages (NULL for those files that worked)
+dat_list <- purrr::transpose(dat_list)
+
+```
+
+### Pick those that worked   
+And check those that didn't    
+```{r}
+
+is_ok <- dat_list$error %>% map_lgl(is.null)
+sum(!is_ok)
+
+dat_list$error[!is_ok]
+
+files_with_errors <- 
+  df_files[!is_ok,]
+
+
+```
+### Put data together  
+```{r}
+
+dat <- dat_list$result[is_ok] %>% bind_rows()
+
+```
+
+
+### Add station coordinates and names  
+```{r}
+
+n1 <- nrow(dat)
+dat <- dat %>%
+  left_join(data_stations, by = c("Station" = "STATION_CODE"))
+
+n2 <- nrow(dat)
+
+if (n2 != n1){
+  stop("Number of rows changed - stations in 'data_stations' are not unique?")
+}  
+
+
+```
+
+
+## 7. Save raw data  
+```{r}
+
+# Reorder columns
+dat <- dat %>%
+  select(Station, Station_name, Lat, Long, Year, Sampleno, Length, Number)
+
+# Save
+saveRDS(dat, "Data/01_Bluemussel_lengths_excel.rds")
+writexl::write_xlsx(dat, "Data/Bluemussel lengths 2014-2019 raw.xlsx")
+
+if (FALSE){
+  # Read back from file if necessary
+  dat <- readRDS("Data/01_Bluemussel_lengths_excel.rds")
+}
+
+```
+
+## 8. Save summarised data  
+
+
+### Summarised on sample level  
+3 lines per station per year  
+```{r}
+
+dat_summ1 <- dat %>%
+  filter(!is.na(Number)) %>%
+  group_by(Station, Year, Sampleno, Length) %>%
+  summarise(Number = sum(Number)) %>%
+  group_by(Station, Year, Sampleno) %>%
+  summarise(
+    Mean_length = weighted.mean(Length, Number),
+    a = sum(Number*((Length - Mean_length)^2)),
+    b = (n()-1)/n()*sum(Number),
+    SD_length = sqrt(a/b),
+    Min_length = min(Length),
+    Max_length = max(Length),
+    Sample_size = sum(Number),
+    .groups = "drop") %>%
+  select(-a, -b)
+
+# Save
+writexl::write_xlsx(dat_summ1, "Data/Bluemussel lengths 2014-2019 summarised sample.xlsx")
+
+```
+### Summarised on sample level  
+1 lines per station per year  
+```{r}
+
+dat_summ2 <- dat %>%
+  filter(!is.na(Number)) %>%
+  group_by(Station, Year, Length) %>%
+  summarise(Number = sum(Number)) %>%
+  group_by(Station, Year) %>%
+  summarise(
+    Mean_length = weighted.mean(Length, Number),
+    a = sum(Number*((Length - Mean_length)^2)),
+    b = (n()-1)/n()*sum(Number),
+    SD_length = sqrt(a/b),
+    Min_length = min(Length),
+    Max_length = max(Length),
+    Sample_size = sum(Number),
+    .groups = "drop") %>%
+  select(-a, -b)
+
+# Save
+writexl::write_xlsx(dat_summ2, "Data/Bluemussel lengths 2014-2019 summarised station.xlsx")
+
+```
+
+
+## 9. Test plots    
+
+
+### Means  
+```{r}
+
+ggplot(dat_summ2, aes(Year, Mean_length)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(vars(Station))
+
+```
+
+```{r}
+
+ggplot(dat_summ, aes(Year, Mean_length, color = Station)) +
+  geom_point() +
+  geom_line()
+
+```
+### SD
+```{r}
+
+gg <- ggplot(dat_summ, aes(Year, SD_length, color = Station)) +
+  geom_point() +
+  geom_line()
+
+plotly::ggplotly(gg)
+
+```
+
+### Single stations  
+
+```{r}
+
+plot_station <- function(station){
+  dat %>%
+    filter(Station %in% station & !is.na(Number)) %>%
+    group_by(Station, Year, Length) %>%
+    summarise(Number = sum(Number), .groups = "drop") %>%
+    ggplot(aes(x = Length, y = Number)) +
+    geom_col(width = 1) +
+    facet_wrap(vars(Year)) +
+    labs(title = station)
+}
+
+plot_station("I131")
+plot_station("76A2")
+plot_station("10A2")
+
+```
+
+
+
+
+
+
