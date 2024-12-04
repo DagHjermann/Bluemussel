@@ -30,7 +30,7 @@ datafolder <- "K:/Avdeling/214-Oseanografi/DHJ/Data/Contaminants/Marine/Milkys"
 ### Station names and coordinates  
 ```{r}
 
-data_stations <- readxl::read_excel(glue("{datafolder}/Kartbase_edit.xlsx")
+data_stations <- readxl::read_excel(glue("{datafolder}/Kartbase_edit.xlsx"))
 
 ```
 
@@ -225,7 +225,15 @@ vars <- c("jmpst", "Station_name", "Lat_fixed", "Long_fixed",   # station codes 
 #   Note: these positions may differ from one year to another (at least in principle)
 
 # Selected  columns for excel file
-writexl::write_xlsx(df_bluemussel[vars], "Data/Bluemussel lengths 1981-2013 summarised.xlsx")  
+# For som reason, 
+# writexl::write_xlsx(df_bluemussel[,vars], "Data/Bluemussel lengths 1981-2013 summarised.xlsx")  
+
+# Save as csv (European format)
+readr::write_csv2(df_bluemussel[,vars], "Data/Bluemussel lengths 1981-2013 summarised.csv")  
+# To save this to excel: 1) Open an empty excel file; 2) Data:From text/csv , 
+# 3) In the preview of the file, change "File Origin" to  "65001: Unicode (UTF-8)", 4) Load
+# 5) Copy all, open yet another excel file, and "paste as values"
+
 
 # All columns for rds file
 saveRDS(df_bluemussel, "Data/02_df_bluemussel.rds")
@@ -250,7 +258,8 @@ df_bluemussel %>%
   group_by(jmpst) %>%
   mutate(n_years = length(unique(myear))) %>%
   filter(n_years >= 5) %>%
-  geom_point() +
+  ggplot(aes(myear, lnmea, color = noinp)) +
+  geom_point(size = 0.5) +
   facet_wrap(vars(jmpst))
 
 ```
